@@ -36,6 +36,7 @@ import (
 	"github.com/tidwall/gjson"
 	"net/url"
 	"sync"
+	"unsafe"
 )
 
 func main() {}
@@ -159,22 +160,27 @@ func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuc
 	json.Unmarshal(message, &m)
 	header := m["header"].(map[string]interface{})
 	//对headername 进行相关的判断
-	headerName := header["name"]
-	switch headerName {
-	case "EvaluationStarted":
-		onStartSuccess(startSuccess)
-	case "EvaluationResult":
-		onResult(result, string(message))
-	case "EvaluationError":
-		onError(error, header["status"].(string), header["statusText"].(string))
-	case "EvaluationWarning":
-		onWarning(warning, header["status"].(string), header["statusText"].(string))
-	}
-	//go func() {
-	//	for {
-	//
-	//	}
-	//}()
+	go func() {
+		for {
+			_, message, err = conn.ReadMessage()
+			if err != nil {
+				onError(error, "20199", err.Error())
+				return
+			}
+
+			switch gjson.GetBytes(message, "header.name").String() {
+			case "EvaluationStarted":
+				onStartSuccess(startSuccess)
+			case "EvaluationResult":
+				onResult(result, string(message))
+			case "EvaluationError":
+				onError(error, header["status"].(string), header["statusText"].(string))
+			case "EvaluationWarning":
+				onWarning(warning, header["status"].(string), header["statusText"].(string))
+
+			}
+		}
+	}()
 }
 
 func sendStartJson(conn *websocket.Conn, params AsrParams) error {
@@ -209,16 +215,25 @@ func getStartJson(params AsrParams) []byte {
 }
 
 //export feed
-func feed(taskId string) {
-
+func feed(taskId string, data *C.char, length C.int) {
+	var buf []byte
+	buf = C.GoBytes(unsafe.Pointer(data), length)
 	//取taskId 然后写进去
-	connMap.Load(taskId)
-	//进行服务端的传输
+	var v interface{}
+	v, _ = connMap.Load(taskId)
+	conn, _ := v.(*websocket.Conn)
+	conn.WriteMessage(websocket.BinaryMessage, buf)
+	//用断言出来的conn,来writeMessage
+	//两个返回一个value 一个bool
+	//直接readMessage
 }
 
 //export stop
 func stop(taskId *C.char) {
-	connMap.Store(C.GoString(taskId), getStopJson())
+	var v interface{}
+	v, _ = connMap.Load(taskId)
+	conn, _ := v.(*websocket.Conn)
+	conn.WriteMessage(websocket.TextMessage, getStopJson())
 }
 func getStopJson() []byte {
 	p := make(map[string]interface{})

@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include "libsoe.h"
 
-char *appId = "39868f66-256c-4ff5-af51-8f2a887e85b4";
-char *appSecret = "087ddf41b868880b";
 
 const char *txtPath = "pronunciation.txt"; //文本路径
 const char *audioPath = "pronunciation.wav"; //音频文件路径
