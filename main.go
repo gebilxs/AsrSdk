@@ -34,7 +34,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"net/url"
 	"sync"
 )
@@ -206,13 +205,16 @@ func getStartJson(params AsrParams) []byte {
 	p["payload"] = payload
 	data, _ := json.Marshal(p)
 
-	data, _ = sjson.SetRawBytes(data, "payload.params", []byte(params.paramsJson))
-
 	return data
 }
 
 //export feed
-func feed() {}
+func feed(taskId string) {
+
+	//取taskId 然后写进去
+	connMap.Load(taskId)
+	//进行服务端的传输
+}
 
 //export stop
 func stop(taskId *C.char) {
