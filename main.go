@@ -33,13 +33,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"net/url"
+	"sync"
 )
 
 func main() {}
 
 type AsrParams struct {
+	taskId                         string
+	filename                       string
 	scheme                         string
 	addr                           string
 	path                           string
@@ -58,6 +62,7 @@ type AsrParams struct {
 	forbiddenWordsId               string
 	paramsJson                     string
 	Url                            url.URL
+	Conn                           *websocket.Conn
 }
 
 const (
@@ -67,7 +72,8 @@ const (
 )
 
 // 放置websocket链接的map
-var connMap = make(map[string]*websocket.Conn)
+
+var connMap = sync.Map{}
 
 //export start
 func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuccess,
@@ -112,8 +118,9 @@ func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuc
 
 	}
 	//将链接存入 map 中 先将filename作为key 因为taskId是之后才返回的参数
-	connMap[filename] = conn
+	//connMap[filename] = conn
 	//params中应该是payload中的参数
+
 	params := AsrParams{
 		langType:                       langType,
 		enableIntermediateResult:       enableIntermediateResult,
@@ -134,29 +141,41 @@ func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuc
 		log(err.Error())
 		return
 	}
-	go func() {
-		for {
-			_, msg, err := conn.ReadMessage()
-			//log(string(msg))
-			if err != nil {
-				break
-			}
-			m := make(map[string]interface{})
-			json.Unmarshal(msg, &m)
-			header := m["header"].(map[string]interface{})
-			headerName := header["name"]
-			switch headerName {
-			case "EvaluationStarted":
-				onStartSuccess(startSuccess)
-			case "EvaluationResult":
-				onResult(result, string(msg))
-			case "EvaluationError":
-				onError(error, header["status"].(string), header["statusText"].(string))
-			case "EvaluationWarning":
-				onWarning(warning, header["status"].(string), header["statusText"].(string))
-			}
-		}
-	}()
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		log(err.Error())
+		return
+	}
+	name := gjson.GetBytes(message, "header.name").String()
+	if name != "TranscriptionStarted" && name != "RecognitionStarted" {
+		log(err.Error())
+		return
+	}
+	taskId := gjson.GetBytes(message, "header.task_id").String()
+	//存储
+	connMap.Store(taskId, conn)
+
+	fmt.Println(taskId)
+	m := make(map[string]interface{})
+	json.Unmarshal(message, &m)
+	header := m["header"].(map[string]interface{})
+	//对headername 进行相关的判断
+	headerName := header["name"]
+	switch headerName {
+	case "EvaluationStarted":
+		onStartSuccess(startSuccess)
+	case "EvaluationResult":
+		onResult(result, string(message))
+	case "EvaluationError":
+		onError(error, header["status"].(string), header["statusText"].(string))
+	case "EvaluationWarning":
+		onWarning(warning, header["status"].(string), header["statusText"].(string))
+	}
+	//go func() {
+	//	for {
+	//
+	//	}
+	//}()
 }
 
 func sendStartJson(conn *websocket.Conn, params AsrParams) error {
@@ -197,7 +216,7 @@ func feed() {}
 
 //export stop
 func stop(taskId *C.char) {
-	connMap[C.GoString(taskId)].WriteMessage(websocket.TextMessage, getStopJson())
+	connMap.Store(C.GoString(taskId), getStopJson())
 }
 func getStopJson() []byte {
 	p := make(map[string]interface{})
