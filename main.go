@@ -112,13 +112,14 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	punctuationPrediction := bool(cParams.punctuationPrediction)
 	saveOutput := bool(cParams.saveOutput)
 	sleep := bool(cParams.sleep)
+	path := C.GoString(cParams.path)
 	//paramsJson := C.GoString(cParams.paramsJson)
 	//获取url
 	Url := url.URL{
 		//这里同样可以先做数据处理
 		Scheme: C.GoString(cParams.scheme),
 		Host:   C.GoString(cParams.addr),
-		Path:   C.GoString(cParams.path),
+		Path:   "/ws/v1",
 	}
 	fmt.Println("connecting to", Url.String())
 
@@ -151,6 +152,7 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 		punctuationPrediction:          punctuationPrediction,
 		saveOutput:                     saveOutput,
 		sleep:                          sleep,
+		path:                           path,
 	}
 	err = sendStartJson(conn, params)
 	if err != nil {
@@ -225,6 +227,7 @@ func getStartJson(params AsrParams) []byte {
 	payload["punctuationPrediction"] = params.punctuationPrediction
 	payload["saveOutput"] = params.saveOutput
 	payload["sleep"] = params.sleep
+	payload["path"] = params.path
 
 	p["header"] = header
 	p["payload"] = payload

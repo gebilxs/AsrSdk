@@ -7,7 +7,7 @@
 
 const char *scheme = "ws";
 const char *addr ="localhost:7100";
-const char *path ="ws/v1";
+const char *path ="C:/Users/Administrator/Desktop/chengdu.wav";
 const char *langType = "zh-cmn-Hans-CN";
 const char *format="wav";
 const char *hotwordsId="default";
