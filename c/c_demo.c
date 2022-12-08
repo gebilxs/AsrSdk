@@ -7,7 +7,7 @@
 
 const char *scheme = "ws";
 const char *addr ="localhost:7100";
-const char *path ="C:\\Users\\Administrator\\Desktop\\chengdu.wav";
+const char *path ="ws/v1";
 const char *langType = "zh-cmn-Hans-CN";
 const char *format="wav";
 const char *hotwordsId="default";
@@ -80,6 +80,9 @@ int main() {
 
     struct Params p;
     //必须设置以下参数
+    p.scheme=scheme;
+    p.addr=addr;
+    p.path=path;
     p.enableIntermediateResult = enableIntermediateResult;
     p.sampleRate = sampleRate;
     p.langType = langType;
