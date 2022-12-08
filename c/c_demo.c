@@ -24,7 +24,7 @@ bool enableWords = false;
 bool  saveOutput = false;
 bool sleep =false;
 bool punctuationPrediction=true;
-void onStartSuccessCallback() {
+void onStartSuccessCallback( char *taskId) {
     const int size = 6400;
     FILE *fp = fopen(path, "rb");
     if (fp == NULL) {

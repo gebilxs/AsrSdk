@@ -9,8 +9,8 @@ typedef void (*onWarning)(const char *,const char *);
 typedef void (*onError)(const char *,const char *);
 
 
-void c_onStartSuccess(onStartSuccess _cb){
-   _cb();
+void c_onStartSuccess(onStartSuccess _cb,const char *taskId){
+   _cb(taskId);
 }
 
 void c_onResult(onResult _cb,const char * msg){

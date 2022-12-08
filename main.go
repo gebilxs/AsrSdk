@@ -186,7 +186,7 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 
 			switch gjson.GetBytes(message, "header.name").String() {
 			case "EvaluationStarted":
-				onStartSuccess(startSuccess)
+				onStartSuccess(startSuccess, taskId)
 			case "EvaluationResult":
 				onResult(result, string(message))
 			case "EvaluationError":
@@ -234,7 +234,7 @@ func getStartJson(params AsrParams) []byte {
 }
 
 //export feed
-func feed(taskId string, data *C.char, length C.int) {
+func feed(taskId *C.char, data *C.char, length C.int) {
 	var buf []byte
 	buf = C.GoBytes(unsafe.Pointer(data), length)
 	//取taskId 然后写进去
