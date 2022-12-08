@@ -6,29 +6,25 @@
 
 
 const char *scheme = "ws";
-const char *addr ="localhost:7100"
-const char *path ="C:\\Users\\Administrator\\Desktop\\chengdu.wav"
-const char *langType = "zh-cmn-Hans-CN"
-const char *format="pcm"
-const char *hotwordsId="default"
-const char *hotwordsWeight="0.7"
-const char *correctionWordsId=""
-const char *forbiddenWordsId=""
-const int sampleRate=16000
-const int thread = 1
-const int maxSentenceSilence=450
-const int serverType=1
-bool enableIntermediateResult =true
-bool enableInverseTextNormalization=true
-bool enableWords = false
-bool  saveOutput = false
-bool sleep =false
-bool punctuationPrediction=true
-
-const char *format = "wav"; //音频文件格式： wav/pcm/mp3
-
+const char *addr ="localhost:7100";
+const char *path ="C:\\Users\\Administrator\\Desktop\\chengdu.wav";
+const char *langType = "zh-cmn-Hans-CN";
+const char *format="wav";
+const char *hotwordsId="default";
+const char *hotwordsWeight="0.7";
+const char *correctionWordsId="";
+const char *forbiddenWordsId="";
+const int sampleRate=16000;
+const int thread = 1;
+const int maxSentenceSilence=450;
+const int serverType=1;
+bool enableIntermediateResult =true;
+bool enableInverseTextNormalization=true;
+bool enableWords = false;
+bool  saveOutput = false;
+bool sleep =false;
+bool punctuationPrediction=true;
 void onStartSuccessCallback() {
-
     const int size = 6400;
     FILE *fp = fopen(path, "rb");
     if (fp == NULL) {
@@ -89,16 +85,16 @@ int main() {
     p.langType = langType;
     p.format=format;
     p.maxSentenceSilence=maxSentenceSilence;
-    p.enableInverseTextNormalization=enableInverseTextNormalization
-    p.enableWords=enableWords
-    p.hotwordsId=hotwordsId
-    p.hotwordsWeight=hotwordsWeight
-    p.forbiddenWordsId=forbiddenWordsId
-    p.thread=thread
-    p.serverType=serverType
-    p.punctuationPrediction=punctuationPrediction
-    p.saveOutput=saveOutput
-    p.sleep=sleep
+    p.enableInverseTextNormalization=enableInverseTextNormalization;
+    p.enableWords=enableWords;
+    p.hotwordsId=hotwordsId;
+    p.hotwordsWeight=0;
+    p.forbiddenWordsId=forbiddenWordsId;
+    p.thread=thread;
+    p.serverType=serverType;
+    p.punctuationPrediction=punctuationPrediction;
+    p.saveOutput=saveOutput;
+    p.sleep=sleep;
 
     static char json[1024] = {0};
 

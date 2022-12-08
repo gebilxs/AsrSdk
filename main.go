@@ -1,7 +1,11 @@
 package main
 
 /*
-
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
    typedef void (*onStartSuccess)();
    typedef void (*onResult)(const char * msg);
    typedef void (*onWarning)(const char * code,const char * msg);
@@ -24,7 +28,12 @@ package main
    	const char* forbiddenWordsId;
    	const char* paramsJson;
 	int serverType;
+	int thread;
+	bool punctuationPrediction;
+	bool saveOutput;
+	bool sleep;
    };
+
 */
 import "C"
 import (
@@ -58,7 +67,7 @@ type AsrParams struct {
 	correctionWordsId              string
 	forbiddenWordsId               string
 	paramsJson                     string
-	thread                         string
+	thread                         int
 	punctuationPrediction          bool
 	saveOutput                     bool
 	sleep                          bool
@@ -97,7 +106,7 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	hotwordsWeight := float64(cParams.hotwordsWeight)
 	correctionWordsId := C.GoString(cParams.correctionWordsId)
 	forbiddenWordsId := C.GoString(cParams.forbiddenWordsId)
-	thread := C.GoString(cParams.thread)
+	thread := int(cParams.thread)
 	maxSentenceSilence := int(cParams.maxSentenceSilence)
 	serverType := int(cParams.serverType)
 	punctuationPrediction := bool(cParams.punctuationPrediction)
@@ -204,7 +213,7 @@ func getStartJson(params AsrParams) []byte {
 	payload["enableIntermediateResult"] = params.enableIntermediateResult
 	payload["sampleRate"] = params.sampleRate
 	payload["format"] = params.format
-	payload["maxSentenceSilence"] = params
+	payload["maxSentenceSilence"] = params.maxSentenceSilence
 	payload["enableInverseTextNormalization"] = params.enableInverseTextNormalization
 	payload["enableWords"] = params.enableWords
 	payload["hotwordsId"] = params.hotwordsId
