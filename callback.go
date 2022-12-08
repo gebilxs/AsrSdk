@@ -3,13 +3,13 @@ package main
 /*
 #include <stdio.h>
 
-typedef void (*onStartSuccess)();
+typedef void (*onStartSuccess)(char*);
 typedef void (*onResult)(const char *);
 typedef void (*onWarning)(const char *,const char *);
 typedef void (*onError)(const char *,const char *);
 
 
-void c_onStartSuccess(onStartSuccess _cb,const char *taskId){
+void c_onStartSuccess(onStartSuccess _cb,char *taskId){
    _cb(taskId);
 }
 

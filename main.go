@@ -6,7 +6,7 @@ package main
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-   typedef void (*onStartSuccess)();
+   typedef void (*onStartSuccess)( char * taskId);
    typedef void (*onResult)(const char * msg);
    typedef void (*onWarning)(const char * code,const char * msg);
    typedef void (*onError)(const char * code,const char * msg);
@@ -159,42 +159,26 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 		log(err.Error())
 		return
 	}
-	_, message, err := conn.ReadMessage()
-	if err != nil {
-		log(err.Error())
-		return
-	}
-	name := gjson.GetBytes(message, "header.name").String()
-	if name != "TranscriptionStarted" && name != "RecognitionStarted" {
-		log(err.Error())
-		return
-	}
-	taskId := gjson.GetBytes(message, "header.task_id").String()
-	//存储
-	connMap.Store(taskId, conn)
 
-	fmt.Println(taskId)
-	m := make(map[string]interface{})
-	json.Unmarshal(message, &m)
-	header := m["header"].(map[string]interface{})
 	//对headername 进行相关的判断
 	go func() {
 		for {
-			_, message, err = conn.ReadMessage()
+			_, message, err := conn.ReadMessage()
 			if err != nil {
 				onError(error, "20199", err.Error())
 				return
 			}
-
+			fmt.Println("result:", string(message))
 			switch gjson.GetBytes(message, "header.name").String() {
-			case "EvaluationStarted":
+			case "TranscriptionStarted":
+				taskId := gjson.GetBytes(message, "header.task_id").String()
+				//存储
+				connMap.Store(taskId, conn)
 				onStartSuccess(startSuccess, taskId)
-			case "EvaluationResult":
+			case "SentenceBegin", "TranscriptionResultChanged", "SentenceEnd", "TranscriptionCompleted":
 				onResult(result, string(message))
-			case "EvaluationError":
-				onError(error, header["status"].(string), header["statusText"].(string))
-			case "EvaluationWarning":
-				onWarning(warning, header["status"].(string), header["statusText"].(string))
+			case "TaskFailed":
+				onError(error, gjson.GetBytes(message, "header.status").String(), gjson.GetBytes(message, "header.status_ext").String())
 
 			}
 		}
@@ -206,31 +190,29 @@ func sendStartJson(conn *websocket.Conn, params AsrParams) error {
 }
 func getStartJson(params AsrParams) []byte {
 	p := make(map[string]interface{})
-	header := make(map[string]interface{})
-	header["namespace"] = "SpeechEvaluator"
-	header["name"] = "StartEvaluation"
+	header := map[string]interface{}{
+		"namespace": "SpeechTranscriber",
+		"name":      "StartTranscription",
+	}
 	payload := make(map[string]interface{})
 
-	payload["langType"] = params.langType
-	payload["enableIntermediateResult"] = params.enableIntermediateResult
-	payload["sampleRate"] = params.sampleRate
+	payload["lang_type"] = params.langType
+	//payload["enable_intermediate_result"] = params.enableIntermediateResult
+	payload["enable_intermediate_result"] = true
+	payload["sample_rate"] = params.sampleRate
 	payload["format"] = params.format
-	payload["maxSentenceSilence"] = params.maxSentenceSilence
-	payload["enableInverseTextNormalization"] = params.enableInverseTextNormalization
-	payload["enableWords"] = params.enableWords
-	payload["hotwordsId"] = params.hotwordsId
-	payload["hotwordsWeight"] = params.hotwordsWeight
-	payload["correctionWordsId"] = params.correctionWordsId
-	payload["forbiddenWordsId"] = params.forbiddenWordsId
-	payload["thread"] = params.thread
-	payload["serverType"] = params.serverType
-	payload["punctuationPrediction"] = params.punctuationPrediction
-	payload["saveOutput"] = params.saveOutput
-	payload["sleep"] = params.sleep
-	payload["path"] = params.path
+	payload["max_sentence_silence"] = params.maxSentenceSilence
+	payload["enable_inverse_text_normalization"] = params.enableInverseTextNormalization
+	payload["enable_words"] = params.enableWords
+	payload["hotwords_id"] = params.hotwordsId
+	payload["hotwords_weight"] = params.hotwordsWeight
+	payload["correction_words_id"] = params.correctionWordsId
+	payload["forbidden_words_id"] = params.forbiddenWordsId
+	payload["enable_punctuation_prediction"] = params.punctuationPrediction
 
 	p["header"] = header
 	p["payload"] = payload
+	fmt.Printf("%+v\n", p)
 	data, _ := json.Marshal(p)
 
 	return data
@@ -241,10 +223,24 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 	var buf []byte
 	buf = C.GoBytes(unsafe.Pointer(data), length)
 	//取taskId 然后写进去
-	var v interface{}
-	v, _ = connMap.Load(taskId)
-	conn, _ := v.(*websocket.Conn)
-	conn.WriteMessage(websocket.BinaryMessage, buf)
+	//fmt.Println("taskId:", C.GoString(taskId))
+	v, ok := connMap.Load(C.GoString(taskId))
+	if !ok {
+		fmt.Println("Wrong task id,taskId:", taskId)
+		return
+	}
+
+	conn, ok := v.(*websocket.Conn)
+	if !ok {
+		fmt.Println("Wrong conn type")
+		return
+	}
+
+	err := conn.WriteMessage(websocket.BinaryMessage, buf)
+	if err != nil {
+		fmt.Println("Failed write message,err:", err)
+		return
+	}
 	//用断言出来的conn,来writeMessage
 	//两个返回一个value 一个bool
 	//直接readMessage
@@ -253,15 +249,15 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 //export stop
 func stop(taskId *C.char) {
 	var v interface{}
-	v, _ = connMap.Load(taskId)
+	v, _ = connMap.Load(C.GoString(taskId))
 	conn, _ := v.(*websocket.Conn)
 	conn.WriteMessage(websocket.TextMessage, getStopJson())
 }
 func getStopJson() []byte {
 	p := make(map[string]interface{})
 	header := make(map[string]interface{})
-	header["namespace"] = "SpeechEvaluator"
-	header["name"] = "StopEvaluation"
+	header["namespace"] = "SpeechTranscriber"
+	header["name"] = "StopTranscription"
 	p["header"] = header
 	data, _ := json.Marshal(p)
 	return data

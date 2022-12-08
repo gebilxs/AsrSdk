@@ -24,7 +24,8 @@ bool enableWords = false;
 bool  saveOutput = false;
 bool sleep =false;
 bool punctuationPrediction=true;
-void onStartSuccessCallback( char *taskId) {
+void onStartSuccessCallback(const char *taskId) {
+    printf("on start success ...\n");
     const int size = 6400;
     FILE *fp = fopen(path, "rb");
     if (fp == NULL) {
@@ -34,11 +35,12 @@ void onStartSuccessCallback( char *taskId) {
 
     if (strcmp(format, "wav") == 0 || strcmp(format, "pcm") == 0) {
         //wav格式需要分包
-        printf("readWav/pcm.\n");
+        printf("read wav/pcm.\n");
         char buffer[size];
         int len;
         do {
             len = fread(buffer, sizeof(char), size, fp);
+//            printf("len:%d,size:%d\n",len,size);
             if (len == size) {
                 feed(taskId, buffer, size);
             } else {
@@ -47,17 +49,18 @@ void onStartSuccessCallback( char *taskId) {
                 feed(taskId, newBuffer, len);
                 break;
             }
+
         } while (len == size);
     }
     fclose(fp);
     stop(taskId);
+    printf("stop ...\n");
 }
 
 
 void onResultCallback(const char *msg) {
     printf("demo,onResult:\n");
     printf("%s\n", msg);
-    exit(0);
 }
 
 void onWarningCallback(const char *code, const char *msg) {
@@ -98,6 +101,7 @@ int main() {
     p.punctuationPrediction=punctuationPrediction;
     p.saveOutput=saveOutput;
     p.sleep=sleep;
+    p.correctionWordsId=correctionWordsId;
 
     static char json[1024] = {0};
 
@@ -106,4 +110,5 @@ int main() {
     start(&p, onStartSuccessCallback, onResultCallback, onWarningCallback,
           onErrorCallback);
     getchar();
+ printf("end ...");
 }

@@ -2,7 +2,7 @@ package main
 
 /*
 
-typedef void (*onStartSuccess)( char* taskId);
+typedef void (*onStartSuccess)(  char* taskId);
 typedef void (*onResult)(const char * msg);
 typedef void (*onWarning)(const char * code,const char * msg);
 typedef void (*onError)(const char * code,const char * msg);
@@ -10,12 +10,15 @@ typedef void (*onError)(const char * code,const char * msg);
 extern void c_onResult (onResult, const char *msg);
 extern void c_onWarning (onWarning, const char *code, const char *msg);
 extern void c_onError (onError, const char *code, const char *msg);
-extern void c_onStartSuccess(onStartSuccess, char*taskId);
+extern void c_onStartSuccess(onStartSuccess,  char*taskId);
 
 */
 import "C"
+import "fmt"
 
 func onStartSuccess(callback C.onStartSuccess, taskId string) {
+	fmt.Println(&callback, callback)
+
 	C.c_onStartSuccess(callback, C.CString(taskId))
 }
 
