@@ -2,20 +2,35 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "libsoe.h"
+#include "libasr.h"
 
 
-const char *txtPath = "pronunciation.txt"; //文本路径
-const char *audioPath = "pronunciation.wav"; //音频文件路径
+const char *scheme = "ws";
+const char *addr ="localhost:7100"
+const char *path ="C:\\Users\\Administrator\\Desktop\\chengdu.wav"
+const char *langType = "zh-cmn-Hans-CN"
+const char *format="pcm"
+const char *hotwordsId="default"
+const char *hotwordsWeight="0.7"
+const char *correctionWordsId=""
+const char *forbiddenWordsId=""
+const int sampleRate=16000
+const int thread = 1
+const int maxSentenceSilence=450
+const int serverType=1
+bool enableIntermediateResult =true
+bool enableInverseTextNormalization=true
+bool enableWords = false
+bool  saveOutput = false
+bool sleep =false
+bool punctuationPrediction=true
 
 const char *format = "wav"; //音频文件格式： wav/pcm/mp3
-const char *mode = "word"; //评测模式：   低阶： word/sentence/chapter
-//                                       高阶： qa/retell/topic
 
 void onStartSuccessCallback() {
 
     const int size = 6400;
-    FILE *fp = fopen(audioPath, "rb");
+    FILE *fp = fopen(path, "rb");
     if (fp == NULL) {
         printf("read wav file error.");
         return;
@@ -29,38 +44,19 @@ void onStartSuccessCallback() {
         do {
             len = fread(buffer, sizeof(char), size, fp);
             if (len == size) {
-                feed(appId, buffer, size);
+                feed(taskId, buffer, size);
             } else {
                 char newBuffer[len];
                 memcpy(newBuffer, buffer, sizeof(char) * len);
-                feed(appId, newBuffer, len);
+                feed(taskId, newBuffer, len);
                 break;
             }
         } while (len == size);
-    } else if (strcmp(format, "mp3") == 0) {
-        //mp3格式需要读取整个文件
-        printf("readMp3.\n");
-        fseek(fp, 0, SEEK_END);
-        int file_size = ftell(fp);
-        char buffer[file_size];
-        fseek(fp, 0, SEEK_SET);
-        int len = fread(buffer, sizeof(char), file_size, fp);
-        feed(appId, buffer, len);
     }
     fclose(fp);
-    stop(appId);
+    stop(taskId);
 }
 
-int readTextFile(const char *path, char *buff) {
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL) {
-        printf("read txt file error.\n");
-        return -1;
-    }
-    fread(buff, sizeof(char), 1024, fp);
-    fclose(fp);
-    return 0;
-}
 
 void onResultCallback(const char *msg) {
     printf("demo,onResult:\n");
@@ -77,14 +73,6 @@ void onErrorCallback(const char *code, const char *msg) {
     exit(0);
 }
 
-bool isBasic(const char *mode) {
-    return strcmp(mode, "word") == 0 || strcmp(mode, "sentence") == 0 || strcmp(mode, "chapter") == 0;
-}
-
-bool isAdvance(const char *mode) {
-    return strcmp(mode, "qa") == 0 || strcmp(mode, "retell") == 0 || strcmp(mode, "topic") == 0;
-}
-
 int main() {
 
 
@@ -96,39 +84,27 @@ int main() {
 
     struct Params p;
     //必须设置以下参数
-    p.looseness = 4;
-    p.connectTimeout = 15;
-    p.responseTimeout = 15;
-    p.scale = 100;
-    p.sampleRate = 16000;
-
-    p.langType = "en-US";
-    p.userId = "";
-    p.format = format;
+    p.enableIntermediateResult = enableIntermediateResult;
+    p.sampleRate = sampleRate;
+    p.langType = langType;
+    p.format=format;
+    p.maxSentenceSilence=maxSentenceSilence;
+    p.enableInverseTextNormalization=enableInverseTextNormalization
+    p.enableWords=enableWords
+    p.hotwordsId=hotwordsId
+    p.hotwordsWeight=hotwordsWeight
+    p.forbiddenWordsId=forbiddenWordsId
+    p.thread=thread
+    p.serverType=serverType
+    p.punctuationPrediction=punctuationPrediction
+    p.saveOutput=saveOutput
+    p.sleep=sleep
 
     static char json[1024] = {0};
-    if (isBasic(mode)) {
-        char text[1024] = {0};
-        int ret = readTextFile(txtPath, text);
-        if (ret != 0) {
-            return ret;
-        }
-        sprintf(json, "{\"mode\":\"%s\",\"refText\":\"%s\"}", mode, text);
-    } else if (isAdvance(mode)) {
-        char jsonPath[50];
-        sprintf(jsonPath, "./json/%s.json", mode);
-        int ret = readTextFile(jsonPath, json);
-        if (ret != 0) {
-            return ret;
-        }
-    } else {
-        printf("error mode:%s", mode);
-        exit(0);
-    }
 
     p.paramsJson = json;
 
-    start(appId, appSecret, &p, onStartSuccessCallback, onResultCallback, onWarningCallback,
+    start(&p, onStartSuccessCallback, onResultCallback, onWarningCallback,
           onErrorCallback);
     getchar();
 }

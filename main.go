@@ -8,24 +8,22 @@ package main
    typedef void (*onError)(const char * code,const char * msg);
 
    struct Params{
-const char* scheme
-const char* addr
-const char* path
-   	const char* langType
-   	bool enableIntermediateResult
-   	int sampleRate
+	const char* scheme;
+	const char* addr;
+	const char* path;
+   	const char* langType;
+   	bool enableIntermediateResult;
+   	int sampleRate;
    	const char* format;
-   	int maxSentenceSilence
-   	bool enablePunctuationPrediction
-   	bool enableInverseTextNormalization
-   	bool enableWords
-   	const char* languageModelId
-   	//unsure
-   	const char* hotwordsId
-   	float hotwordsWeight
-   	const char* correctionWordsId
-   	const char* forbiddenWordsId
+   	int maxSentenceSilence;
+   	bool enableInverseTextNormalization;
+   	bool enableWords;
+   	const char* hotwordsId;
+   	float hotwordsWeight;
+   	const char* correctionWordsId;
+   	const char* forbiddenWordsId;
    	const char* paramsJson;
+	int serverType;
    };
 */
 import "C"
@@ -50,17 +48,20 @@ type AsrParams struct {
 	langType                       string
 	enableIntermediateResult       bool
 	sampleRate                     int
+	serverType                     int
 	format                         string
-	maxSentenceSilence             string
-	enablePunctuationPrediction    bool
+	maxSentenceSilence             int
 	enableInverseTextNormalization bool
 	enableWords                    bool
-	languageModelId                string
 	hotwordsId                     string
 	hotwordsWeight                 float64
 	correctionWordsId              string
 	forbiddenWordsId               string
 	paramsJson                     string
+	thread                         string
+	punctuationPrediction          bool
+	saveOutput                     bool
+	sleep                          bool
 	Url                            url.URL
 	Conn                           *websocket.Conn
 }
@@ -76,7 +77,7 @@ const (
 var connMap = sync.Map{}
 
 //export start
-func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuccess,
+func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	result C.onResult, warning C.onWarning, error C.onError) {
 
 	/*处理c99版本逻辑的代码
@@ -90,22 +91,25 @@ func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuc
 	enableIntermediateResult := bool(cParams.enableIntermediateResult)
 	sampleRate := int(cParams.sampleRate)
 	format := C.GoString(cParams.format)
-	maxSentenceSilence := C.GoString(cParams.maxSentenceSilence)
-	enablePunctuationPrediction := bool(cParams.enablePunctuationPrediction)
 	enableInverseTextNormalization := bool(cParams.enableInverseTextNormalization)
 	enableWords := bool(cParams.enableWords)
-	languageModelId := C.Gostring(cParams.languageModelId)
-	hotwordsId := C.Gostring(cParams.hotwordsId)
-	hotwordsWeight := C.GoFloat64(cParams.hotwordsWeight)
+	hotwordsId := C.GoString(cParams.hotwordsId)
+	hotwordsWeight := float64(cParams.hotwordsWeight)
 	correctionWordsId := C.GoString(cParams.correctionWordsId)
 	forbiddenWordsId := C.GoString(cParams.forbiddenWordsId)
+	thread := C.GoString(cParams.thread)
+	maxSentenceSilence := int(cParams.maxSentenceSilence)
+	serverType := int(cParams.serverType)
+	punctuationPrediction := bool(cParams.punctuationPrediction)
+	saveOutput := bool(cParams.saveOutput)
+	sleep := bool(cParams.sleep)
 	//paramsJson := C.GoString(cParams.paramsJson)
 	//获取url
 	Url := url.URL{
 		//这里同样可以先做数据处理
-		Scheme: C.Gostring(cParams.scheme),
-		Host:   C.Gostring(cParams.addr),
-		Path:   C.Gostring(cParams.path),
+		Scheme: C.GoString(cParams.scheme),
+		Host:   C.GoString(cParams.addr),
+		Path:   C.GoString(cParams.path),
 	}
 	fmt.Println("connecting to", Url.String())
 
@@ -127,14 +131,17 @@ func start(filename *C.char, cParams *C.struct_Params, startSuccess C.onStartSuc
 		sampleRate:                     sampleRate,
 		format:                         format,
 		maxSentenceSilence:             maxSentenceSilence,
-		enablePunctuationPrediction:    enablePunctuationPrediction,
 		enableInverseTextNormalization: enableInverseTextNormalization,
 		enableWords:                    enableWords,
-		languageModelId:                languageModelId,
 		hotwordsId:                     hotwordsId,
 		hotwordsWeight:                 hotwordsWeight,
 		correctionWordsId:              correctionWordsId,
 		forbiddenWordsId:               forbiddenWordsId,
+		thread:                         thread,
+		serverType:                     serverType,
+		punctuationPrediction:          punctuationPrediction,
+		saveOutput:                     saveOutput,
+		sleep:                          sleep,
 	}
 	err = sendStartJson(conn, params)
 	if err != nil {
@@ -198,14 +205,17 @@ func getStartJson(params AsrParams) []byte {
 	payload["sampleRate"] = params.sampleRate
 	payload["format"] = params.format
 	payload["maxSentenceSilence"] = params
-	payload["enablePunctuationPrediction"] = params.enablePunctuationPrediction
 	payload["enableInverseTextNormalization"] = params.enableInverseTextNormalization
 	payload["enableWords"] = params.enableWords
-	payload["languageModelId"] = params.languageModelId
 	payload["hotwordsId"] = params.hotwordsId
 	payload["hotwordsWeight"] = params.hotwordsWeight
 	payload["correctionWordsId"] = params.correctionWordsId
 	payload["forbiddenWordsId"] = params.forbiddenWordsId
+	payload["thread"] = params.thread
+	payload["serverType"] = params.serverType
+	payload["punctuationPrediction"] = params.punctuationPrediction
+	payload["saveOutput"] = params.saveOutput
+	payload["sleep"] = params.sleep
 
 	p["header"] = header
 	p["payload"] = payload

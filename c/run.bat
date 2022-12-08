@@ -1,6 +1,6 @@
 @echo off
 del c_demo.exe
-gcc -m32 ./c_demo.c -o c_demo.exe -I. -L. -lsoe
+gcc ./c_demo.c -o c_demo.exe
 c_demo.exe
 if "%1" == "1" (
  cd ..
