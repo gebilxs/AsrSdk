@@ -281,7 +281,10 @@ func stop(taskId *C.char) {
 		onErr := v.(C.onError)
 		onError(onErr, "20191", "Stop..Wrong websocket conn...")
 	}
-	conn.WriteMessage(websocket.TextMessage, getStopJson())
+	err := conn.WriteMessage(websocket.TextMessage, getStopJson())
+	if err != nil {
+		log(err.Error())
+	}
 }
 func getStopJson() []byte {
 	p := make(map[string]interface{})
