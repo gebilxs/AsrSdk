@@ -7,15 +7,11 @@ package main
 #include <string.h>
 #include <stdbool.h>
    typedef void (*onStartSuccess)( char * taskId);
-   typedef void (*onResult)(const char * msg);
-   typedef void (*onWarning)(const char * code,const char * msg);
    typedef void (*onError)(const char * code,const char * msg);
-//start
 	typedef void (*onSentenceBeginResult)(const char * msg);
 	typedef void(*onTranscriptionResultChangedResult)(const char * msg);
 	typedef void (*onSentenceEndResult)(const char * msg);
 	typedef void (*onTranscriptionCompletedResult)(const char * msg);
-
 
    struct Params{
 	const char* scheme;
@@ -82,9 +78,7 @@ type AsrParams struct {
 }
 
 const (
-	ERR_CONN_FAIL, MSG_CONN_FAIL         = "23110", "连接失败"
-	ERR_PARAM_ABSENCE, MSG_PARAM_ABSENCE = "23121", "参数缺失:"
-	ERR_PARAM, MSG_PARAM                 = "23122", "参数错误:"
+	ERR_CONN_FAIL, MSG_CONN_FAIL = "23110", "连接失败"
 )
 
 // 放置websocket链接的map
@@ -99,13 +93,6 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	SentenceEndResult C.onSentenceEndResult, TranscriptionCompletedResult C.onTranscriptionCompletedResult,
 	error C.onError) {
 
-	/*处理c99版本逻辑的代码
-	err := C.bool(cParams.enableIntermediateResult)
-	if err != true {
-		if C.boolean = 1 {
-	}
-	*/
-	//进行统一的数据转换 c -> go
 	langType := C.GoString(cParams.langType)
 	enableIntermediateResult := bool(cParams.enableIntermediateResult)
 	sampleRate := int(cParams.sampleRate)
@@ -184,7 +171,7 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 				taskId := gjson.GetBytes(message, "header.task_id").String()
 				//存储
 				connMap.Store(taskId, conn)
-				onErrorMap.Store(taskId, onError)
+				onErrorMap.Store(taskId, error)
 				//新建key taskId value onerror回调
 
 				onStartSuccess(startSuccess, taskId)
@@ -218,7 +205,7 @@ func getStartJson(params AsrParams) []byte {
 	payload := make(map[string]interface{})
 
 	payload["lang_type"] = params.langType
-	//payload["enable_intermediate_result"] = params.enableIntermediateResult
+	payload["enable_intermediate_result"] = params.enableIntermediateResult
 	payload["enable_intermediate_result"] = true
 	payload["sample_rate"] = params.sampleRate
 	payload["format"] = params.format
@@ -241,39 +228,40 @@ func getStartJson(params AsrParams) []byte {
 
 //export feed
 func feed(taskId *C.char, data *C.char, length C.int) {
+	//test
+	//v, _ := onErrorMap.Load(C.GoString(taskId))
+	//onErr := v.(C.onError)
+	//onError(onErr, "20191", "testing")
+	//return
 	var buf []byte
 	buf = C.GoBytes(unsafe.Pointer(data), length)
-	//取taskId 然后写进去
-	//fmt.Println("taskId:", C.GoString(taskId))
+
 	v, ok := connMap.Load(C.GoString(taskId))
 	if !ok {
-		//fmt.Println("Wrong task id,taskId:", taskId)
+		log("Wrong taskId")
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onError(onErr, "20191", "Wrong task id ...")
+		onError(onErr, "20191", "Wrong taskId ...")
 		return
 	}
 
 	conn, ok := v.(*websocket.Conn)
 	if !ok {
-		//fmt.Println("Wrong conn type")
+		log("Wrong webSocket connection")
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onError(onErr, "20191", "Wrong websocket conn ...")
+		onError(onErr, "20191", "Wrong webSocket connection")
 		return
 	}
 
 	err := conn.WriteMessage(websocket.BinaryMessage, buf)
 	if err != nil {
-		//fmt.Println("Failed write message,err:", err)
+		log(err.Error())
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
 		onError(onErr, "20191", "Failed write binary message ...")
 		return
 	}
-	//用断言出来的conn,来writeMessage
-	//两个返回一个value 一个bool
-	//直接readMessage
 }
 
 //export stop
@@ -281,25 +269,26 @@ func stop(taskId *C.char) {
 	var v interface{}
 	v, ok := connMap.Load(C.GoString(taskId))
 	if !ok {
-		//fmt.Println("Wrong task id,taskId:", taskId)
+		log("Failed write stop message")
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
 		onError(onErr, "20191", "Failed write stop message ...")
 	}
 	conn, ok := v.(*websocket.Conn)
 	if !ok {
-		//fmt.Println("Wrong conn type")
+		log("Stop..Wrong webSocket connection")
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onError(onErr, "20191", "Wrong websocket conn...")
+		onError(onErr, "20191", "Stop..Wrong websocket conn...")
 	}
 	conn.WriteMessage(websocket.TextMessage, getStopJson())
 }
 func getStopJson() []byte {
 	p := make(map[string]interface{})
-	header := make(map[string]interface{})
-	header["namespace"] = "SpeechTranscriber"
-	header["name"] = "StopTranscription"
+	header := map[string]interface{}{
+		"namespace": "SpeechTranscriber",
+		"name":      "StopTranscription",
+	}
 	p["header"] = header
 	data, _ := json.Marshal(p)
 	return data

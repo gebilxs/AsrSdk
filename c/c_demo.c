@@ -7,7 +7,7 @@
 
 const char *scheme = "ws";
 const char *addr ="localhost:7100";
-const char *path ="C:/Users/Administrator/Desktop/chengdu.wav";
+const char *path ="C:/Users/Administrator/Desktop/105.wav";
 const char *langType = "zh-cmn-Hans-CN";
 const char *format="wav";
 const char *hotwordsId="default";
@@ -40,7 +40,6 @@ void onStartSuccessCallback(const char *taskId) {
         int len;
         do {
             len = fread(buffer, sizeof(char), size, fp);
-//            printf("len:%d,size:%d\n",len,size);
             if (len == size) {
                 feed(taskId, buffer, size);
             } else {
@@ -58,15 +57,24 @@ void onStartSuccessCallback(const char *taskId) {
 }
 
 
-void onResultCallback(const char *msg) {
-    printf("demo,onResult:\n");
+
+ void onSentenceBeginResultCallback(const char*msg){
+printf("demo,onSentenceBeginResult\n");
+printf("%s\n", msg);
+}
+    void onSentenceEndResultCallback(const char*msg){
+    printf("demo,onSentenceEndResult\n");
+    printf("%s\n", msg);
+   }
+   void onTranscriptionResultChangedResultCallback(const char*msg){
+    printf("demo,onTranscriptionResultChangedResult\n");
+    printf("%s\n", msg);
+    }
+
+void onTranscriptionCompletedResultCallback(const char*msg){
+    printf("demo,onTranscriptionCompletedResult\n");
     printf("%s\n", msg);
 }
-
-void onWarningCallback(const char *code, const char *msg) {
-    printf("demo,onWarning:%s %s\n", code, msg);
-}
-
 void onErrorCallback(const char *code, const char *msg) {
     printf("demo,onError:%s %s\n", code, msg);
     exit(0);
@@ -107,7 +115,8 @@ int main() {
 
     p.paramsJson = json;
 
-    start(&p, onStartSuccessCallback, onResultCallback, onWarningCallback,
+    start(&p, onStartSuccessCallback,onSentenceBeginResultCallback,onTranscriptionResultChangedResultCallback,
+    onSentenceEndResultCallback,onTranscriptionCompletedResultCallback,
           onErrorCallback);
     getchar();
  printf("end ...");
