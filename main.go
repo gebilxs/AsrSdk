@@ -10,6 +10,12 @@ package main
    typedef void (*onResult)(const char * msg);
    typedef void (*onWarning)(const char * code,const char * msg);
    typedef void (*onError)(const char * code,const char * msg);
+//start
+	typedef void (*onSentenceBeginResult)(const char * msg);
+	typedef void(*onTranscriptionResultChangedResult)(const char * msg);
+	typedef void (*onSentenceEndResult)(const char * msg);
+	typedef void (*onTranscriptionCompletedResult)(const char * msg);
+
 
    struct Params{
 	const char* scheme;
@@ -84,10 +90,14 @@ const (
 // 放置websocket链接的map
 
 var connMap = sync.Map{}
+var onErrorMap = sync.Map{}
 
 //export start
 func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
-	result C.onResult, warning C.onWarning, error C.onError) {
+	SentenceBeginResult C.onSentenceBeginResult,
+	TranscriptionResultChangedResult C.onTranscriptionResultChangedResult,
+	SentenceEndResult C.onSentenceEndResult, TranscriptionCompletedResult C.onTranscriptionCompletedResult,
+	error C.onError) {
 
 	/*处理c99版本逻辑的代码
 	err := C.bool(cParams.enableIntermediateResult)
@@ -174,9 +184,20 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 				taskId := gjson.GetBytes(message, "header.task_id").String()
 				//存储
 				connMap.Store(taskId, conn)
+				onErrorMap.Store(taskId, onError)
+				//新建key taskId value onerror回调
+
 				onStartSuccess(startSuccess, taskId)
-			case "SentenceBegin", "TranscriptionResultChanged", "SentenceEnd", "TranscriptionCompleted":
-				onResult(result, string(message))
+			//case "SentenceBegin", "TranscriptionResultChanged", "SentenceEnd", "TranscriptionCompleted":
+			//	onResult(result, string(message))
+			case "SentenceBegin":
+				onSentenceBeginResult(SentenceBeginResult, string(message))
+			case "TranscriptionResultChanged":
+				onTranscriptionResultChangedResult(TranscriptionResultChangedResult, string(message))
+			case "SentenceEnd":
+				onSentenceEndResult(SentenceEndResult, string(message))
+			case "TranscriptionCompleted":
+				onTranscriptionCompletedResult(TranscriptionCompletedResult, string(message))
 			case "TaskFailed":
 				onError(error, gjson.GetBytes(message, "header.status").String(), gjson.GetBytes(message, "header.status_ext").String())
 
@@ -226,19 +247,28 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 	//fmt.Println("taskId:", C.GoString(taskId))
 	v, ok := connMap.Load(C.GoString(taskId))
 	if !ok {
-		fmt.Println("Wrong task id,taskId:", taskId)
+		//fmt.Println("Wrong task id,taskId:", taskId)
+		v, _ := onErrorMap.Load(C.GoString(taskId))
+		onErr := v.(C.onError)
+		onErr(C.GoString(taskId))
 		return
 	}
 
 	conn, ok := v.(*websocket.Conn)
 	if !ok {
-		fmt.Println("Wrong conn type")
+		//fmt.Println("Wrong conn type")
+		v, _ := onErrorMap.Load(C.GoString(taskId))
+		onErr := v.(C.onError)
+		onErr("Wrong conn type,taskId:", C.GoString(taskId))
 		return
 	}
 
 	err := conn.WriteMessage(websocket.BinaryMessage, buf)
 	if err != nil {
-		fmt.Println("Failed write message,err:", err)
+		//fmt.Println("Failed write message,err:", err)
+		v, _ := onErrorMap.Load(C.GoString(taskId))
+		onErr := v.(C.onError)
+		onErr("Failed write message,err:", C.GoString(err.Error()))
 		return
 	}
 	//用断言出来的conn,来writeMessage
@@ -249,8 +279,15 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 //export stop
 func stop(taskId *C.char) {
 	var v interface{}
-	v, _ = connMap.Load(C.GoString(taskId))
-	conn, _ := v.(*websocket.Conn)
+	v, ok := connMap.Load(C.GoString(taskId))
+	if !ok {
+		//fmt.Println("Wrong task id,taskId:", taskId)
+		v, _ := onErrorMap.Load(C.GoString(taskId))
+		onErr := v.(C.onError)
+		onErr("Stoped.. failed to get task", C.GoString(taskId))
+	}
+	conn, ok := v.(*websocket.Conn)
+
 	conn.WriteMessage(websocket.TextMessage, getStopJson())
 }
 func getStopJson() []byte {
