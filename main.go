@@ -250,7 +250,7 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 		//fmt.Println("Wrong task id,taskId:", taskId)
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onErr(C.GoString(taskId))
+		onError(onErr, "20191", "Wrong task id ...")
 		return
 	}
 
@@ -259,7 +259,7 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 		//fmt.Println("Wrong conn type")
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onErr("Wrong conn type,taskId:", C.GoString(taskId))
+		onError(onErr, "20191", "Wrong websocket conn ...")
 		return
 	}
 
@@ -268,7 +268,7 @@ func feed(taskId *C.char, data *C.char, length C.int) {
 		//fmt.Println("Failed write message,err:", err)
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onErr("Failed write message,err:", C.GoString(err.Error()))
+		onError(onErr, "20191", "Failed write binary message ...")
 		return
 	}
 	//用断言出来的conn,来writeMessage
@@ -284,7 +284,7 @@ func stop(taskId *C.char) {
 		//fmt.Println("Wrong task id,taskId:", taskId)
 		v, _ := onErrorMap.Load(C.GoString(taskId))
 		onErr := v.(C.onError)
-		onErr("Stoped.. failed to get task", C.GoString(taskId))
+		onError(onErr, "20191", "Failed write stop message ...")
 	}
 	conn, ok := v.(*websocket.Conn)
 
