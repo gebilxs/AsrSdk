@@ -77,9 +77,7 @@ type AsrParams struct {
 	Conn                           *websocket.Conn
 }
 
-const (
-	ERR_CONN_FAIL, MSG_CONN_FAIL = "23110", "连接失败"
-)
+//尚未定义错误处理
 
 // 放置websocket链接的map
 
@@ -124,7 +122,7 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	conn, _, err := websocket.DefaultDialer.Dial(Url.String(), nil)
 	if err != nil {
 		log(err.Error())
-		onError(error, ERR_CONN_FAIL, MSG_CONN_FAIL)
+		onError(error, "23110", "connect to server fail")
 		return
 
 	}
