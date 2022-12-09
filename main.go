@@ -79,8 +79,6 @@ type AsrParams struct {
 
 //尚未定义错误处理
 
-// 放置websocket链接的map
-
 var connMap = sync.Map{}
 var onErrorMap = sync.Map{}
 
@@ -108,17 +106,14 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 	saveOutput := bool(cParams.saveOutput)
 	sleep := bool(cParams.sleep)
 	path := C.GoString(cParams.path)
-	//paramsJson := C.GoString(cParams.paramsJson)
-	//获取url
+
 	Url := url.URL{
-		//这里同样可以先做数据处理
 		Scheme: C.GoString(cParams.scheme),
 		Host:   C.GoString(cParams.addr),
 		Path:   "/ws/v1",
 	}
 	fmt.Println("connecting to", Url.String())
 
-	//创建链接 先不处理resp
 	conn, _, err := websocket.DefaultDialer.Dial(Url.String(), nil)
 	if err != nil {
 		log(err.Error())
@@ -126,9 +121,6 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 		return
 
 	}
-	//将链接存入 map 中 先将filename作为key 因为taskId是之后才返回的参数
-	//connMap[filename] = conn
-	//params中应该是payload中的参数
 
 	params := AsrParams{
 		langType:                       langType,
@@ -155,7 +147,6 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 		return
 	}
 
-	//对headername 进行相关的判断
 	go func() {
 		for {
 			_, message, err := conn.ReadMessage()
@@ -167,14 +158,11 @@ func start(cParams *C.struct_Params, startSuccess C.onStartSuccess,
 			switch gjson.GetBytes(message, "header.name").String() {
 			case "TranscriptionStarted":
 				taskId := gjson.GetBytes(message, "header.task_id").String()
-				//存储
 				connMap.Store(taskId, conn)
 				onErrorMap.Store(taskId, error)
-				//新建key taskId value onerror回调
 
 				onStartSuccess(startSuccess, taskId)
-			//case "SentenceBegin", "TranscriptionResultChanged", "SentenceEnd", "TranscriptionCompleted":
-			//	onResult(result, string(message))
+
 			case "SentenceBegin":
 				onSentenceBeginResult(SentenceBeginResult, string(message))
 			case "TranscriptionResultChanged":
