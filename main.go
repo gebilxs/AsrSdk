@@ -287,7 +287,12 @@ func stop(taskId *C.char) {
 		onError(onErr, "20191", "Failed write stop message ...")
 	}
 	conn, ok := v.(*websocket.Conn)
-
+	if !ok {
+		//fmt.Println("Wrong conn type")
+		v, _ := onErrorMap.Load(C.GoString(taskId))
+		onErr := v.(C.onError)
+		onError(onErr, "20191", "Wrong websocket conn...")
+	}
 	conn.WriteMessage(websocket.TextMessage, getStopJson())
 }
 func getStopJson() []byte {
